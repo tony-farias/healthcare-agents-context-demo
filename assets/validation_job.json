@@ -1,0 +1,25 @@
+{
+  "run_name": "Validate healthcare context engineering workshop",
+  "timeout_seconds": 1200,
+  "tasks": [
+    {
+      "task_key": "combined_lab",
+      "notebook_task": {
+        "notebook_path": "/Shared/context-engineering-healthcare-agents/notebooks/02_Combined_Lab",
+        "base_parameters": {
+          "live_model": "true"
+        },
+        "source": "WORKSPACE"
+      },
+      "environment_key": "workshop_environment"
+    }
+  ],
+  "environments": [
+    {
+      "environment_key": "workshop_environment",
+      "spec": {
+        "client": "4"
+      }
+    }
+  ]
+}

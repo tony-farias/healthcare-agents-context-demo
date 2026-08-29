@@ -1,0 +1,16 @@
+bundle:
+  name: context-engineering-healthcare-agents
+
+sync:
+  include:
+    - notebooks/**
+    - README.md
+    - assets/**
+
+targets:
+  fe_vm_hls_amer:
+    default: true
+    workspace:
+      host: https://fe-vm-hls-amer.cloud.databricks.com
+      profile: fe-vm-hls-amer
+      root_path: /Shared/context-engineering-healthcare-agents

@@ -1,0 +1,103 @@
+[
+  {
+    "layout": "title",
+    "title": "Context Engineering for Healthcare AI Agents",
+    "body": "Diagnosing and tuning agent behavior from MLflow traces\nHands-on workshop • Tony Farias • 2026"
+  },
+  {
+    "layout": "power_statement",
+    "title": "Context engineering is becoming a discipline—not just a technique.",
+    "body": "The shift: from polishing one prompt to governing everything an agent can see, use, and remember."
+  },
+  {
+    "layout": "content_basic",
+    "title": "The market signal: organizations are naming the role",
+    "body": "1,000 CONTEXT ENGINEERS\n\nCognizant announced plans to deploy 1,000 Context Engineers with Workfabric AI, supported by its ContextFabric platform, to industrialize enterprise agentic AI.\n\nWhy it matters: context quality, governance, and domain knowledge are moving from implicit craft to explicit operating capability.\n\nSource: Cognizant, Aug. 29, 2025"
+  },
+  {
+    "layout": "content_basic",
+    "title": "Anthropic formalized the engineering practice",
+    "body": "“Context is a critical but finite resource for AI agents.”\n\nAnthropic describes context engineering as the natural progression of prompt engineering: curating and maintaining the optimal tokens available during inference—including system instructions, tools, MCP, retrieved data, memory, and history.\n\nImportant distinction: the source describes an engineering discipline and design guidance, not a parallel 1,000-person training program.\n\nSource: Anthropic, Effective context engineering for AI agents, Sept. 29, 2025"
+  },
+  {
+    "layout": "content_basic",
+    "title": "Prompt engineering optimizes an instruction. Context engineering optimizes a system.",
+    "body": "PROMPT ENGINEERING\n• Wording and structure of instructions\n• Often one call or one task\n• Primary question: What should we ask?\n\nCONTEXT ENGINEERING\n• System prompt, retrieval, tools, memory, history, and intermediate state\n• Repeated decisions across an agent loop\n• Primary question: What should the model see now—and what must it not see?"
+  },
+  {
+    "layout": "industry_healthcare",
+    "title": "In healthcare, context is both a quality boundary and a privacy boundary",
+    "body": "The same context decision can determine whether an agent is useful, wrong, unsafe, or noncompliant.\n\nProtected health information can enter through retrieval results, tool outputs, message history, or memory—then reach inference or persist in traces."
+  },
+  {
+    "layout": "content_basic",
+    "title": "Trace the complete context lifecycle",
+    "body": "SOURCE → RETRIEVAL / TOOLS → CONTEXT GUARD → MODEL → MEMORY\n\nAt every boundary ask:\n• What entered?\n• Was it authorized, relevant, current, and minimal?\n• What transformation occurred?\n• What reached inference?\n• What was persisted?\n\nThe earliest enforceable boundary is usually the best intervention point."
+  },
+  {
+    "layout": "content_basic",
+    "title": "What participants will be able to do",
+    "body": "1. Read MLflow traces to find synthetic PHI in retrieval, tools, model context, and memory.\n\n2. Diagnose poisoning, distraction, confusion, and clash from span evidence.\n\n3. Select fixes for chunking, retrieval timing, progressive disclosure, tool ambiguity, and memory policy.\n\n4. Compare before/after traces to prove both privacy and quality improvements."
+  },
+  {
+    "layout": "content_basic",
+    "title": "Read a trace like a context engineer",
+    "body": "1. ROOT AGENT — task, configuration, outcome\n2. RETRIEVAL — scope, chunks, relevance, sensitive data\n3. CONTEXT GUARD — drop, redact, transform, or pass through\n4. TOOL ROUTING — available tools, selected tool, returned data\n5. MODEL — exact context available at inference\n6. MEMORY — what the run persisted\n\nDo not start with the final answer. Find the first bad span."
+  },
+  {
+    "layout": "content_basic",
+    "title": "Four context failure modes",
+    "body": "POISONING — untrusted context tries to alter agent behavior.\n\nDISTRACTION — irrelevant volume crowds out the useful signal.\n\nCONFUSION — stale, mixed, or contradictory evidence makes the answer uncertain.\n\nCLASH — overlapping instructions or tool definitions compete.\n\nSource for taxonomy: Drew Breunig, How Long Contexts Fail, June 2025"
+  },
+  {
+    "layout": "section_break_3",
+    "title": "Combined lab",
+    "body": "Diagnose one healthcare agent from broken trace to verified fix"
+  },
+  {
+    "layout": "content_basic",
+    "title": "The broken care-navigation agent",
+    "body": "USER TASK\n“What follow-up care is needed after discharge for this patient?”\n\nSEEDED FAILURES\n• Patient name, MRN, and diagnosis leak from retrieval and a tool\n• An oversized chunk mixes current and archived policy\n• A retrieved note contains a prompt-injection instruction\n• Two overlapping tools expose the wrong capability\n• Raw conversation memory persists the sensitive answer\n\nAll patient-like values are fictional workshop markers."
+  },
+  {
+    "layout": "content_basic",
+    "title": "Exercise 1: follow the synthetic PHI",
+    "body": "In the broken trace, locate:\n• The first span containing an identifier or diagnosis\n• The point where it crosses into model context\n• The tool output that repeats it\n• The memory span that persists it\n\nDecision: where should the system intervene before inference and before persistence?\n\nReal-system rule: traces themselves are a persistence surface. Avoid logging raw PHI."
+  },
+  {
+    "layout": "content_basic",
+    "title": "Exercise 2: diagnose retrieval—not just the answer",
+    "body": "BROKEN\n• Patient record included in a general policy task\n• Giant chunk contains unrelated appendices\n• Current 7-day guidance collides with archived 30-day guidance\n\nFIX\n• Filter to approved policy corpus and metadata\n• Use smaller, policy-oriented chunks\n• Preload stable safety rules\n• Retrieve task-specific clinical policy just in time"
+  },
+  {
+    "layout": "content_basic",
+    "title": "Exercise 3: reduce tool clash with progressive disclosure",
+    "body": "BROKEN\nTwo tools share effectively identical descriptions:\n• get_patient_summary\n• search_clinical_policy\n\nFIX\n• Expose only the policy-search tool for a policy-only intent\n• Give tools distinct purpose and data-boundary descriptions\n• Require explicit, typed arguments\n• Reveal patient-record capabilities only after intent and authorization checks"
+  },
+  {
+    "layout": "content_basic",
+    "title": "Prove the fix in the trace",
+    "body": "BEFORE → AFTER\n\nSynthetic PHI locations: 4 → 0\nSelected tool: patient summary → clinical policy\nRetrieval: mixed patient + giant policy → small approved policy chunks\nModel context: bloated and conflicting → concise and current\nMemory: raw transcript → allowlisted de-identified summary\n\nA better answer is encouraging. Better trace evidence is proof."
+  },
+  {
+    "layout": "content_basic",
+    "title": "45-minute workshop flow",
+    "body": "0–3 min — Setup and synthetic-data warning\n3–10 min — Trace-reading primer\n10–15 min — Generate the broken trace\n15–25 min — Participant trace triage\n25–32 min — Apply the remediation profile\n32–39 min — Compare before/after traces\n39–45 min — Debrief and exit check\n\nHands-on notebooks: fe-vm-hls-amer.cloud.databricks.com → /Shared/context-engineering-healthcare-agents"
+  },
+  {
+    "layout": "content_basic",
+    "title": "The durable operating principle",
+    "body": "Context is a product decision, a quality decision, and a security decision at the same time.\n\nTrace the full lifecycle. Curate the minimum useful context. Intervene at the earliest enforceable boundary. Verify the change with evidence."
+  },
+  {
+    "layout": "content_basic",
+    "title": "Sources and further reading",
+    "body": "Cognizant (Aug. 29, 2025) — Cognizant to Deploy 1,000 Context Engineers, Powered by ContextFabric™, to Industrialize Agentic AI\nnews.cognizant.com/2025-08-29-Cognizant-to-Deploy-1,000-Context-Engineers,-Powered-by-ContextFabric-TM-,-to-Industrialize-Agentic-AI\n\nAnthropic (Sept. 29, 2025) — Effective context engineering for AI agents\nanthropic.com/engineering/effective-context-engineering-for-ai-agents\n\nDrew Breunig (June 22, 2025) — How Long Contexts Fail\ndbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html\n\nMLflow documentation — Tracing for GenAI applications\nmlflow.org/docs/latest/genai/tracing/"
+  },
+  {
+    "layout": "closing",
+    "title": "Questions?",
+    "body": "Open the trace. Find the first bad context boundary."
+  }
+]
+
