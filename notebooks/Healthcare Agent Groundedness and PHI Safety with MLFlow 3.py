@@ -4,10 +4,8 @@
 # environment_version = "5"
 # ///
 # MAGIC %md
-# MAGIC # Combined lab: accurate **and** PHI-safe healthcare agents 
-# MAGIC
-# MAGIC **Mission:** prove that privacy and accuracy are independent requirements. Compare six
-# MAGIC traced runs, then identify why only minimum-necessary context passes both scorecards.
+# MAGIC # Workshop: Healthcare Agent Groundedness and PHI Safety with MLFlow 3
+# MAGIC **Mission:** Identify different kinds of Agent Groundedness and PHI Safety failures using LLM Judges on logged Agent Eval Runs.
 # MAGIC
 # MAGIC All people, identifiers, policies, and clinical details are fictional workshop fixtures.
 
@@ -47,16 +45,45 @@ configs = [
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2 — Run six controlled experiments (8 minutes)
+# MAGIC ## Any Healthcare agent that operates must work on two levels:
+# MAGIC - **groundedness** (is the answer traceable to an official policy?)
+# MAGIC - **PHI leakage** (HIPAA privacy)
 # MAGIC
-# MAGIC | Run | Expected accuracy | Expected privacy | Failure being isolated |
-# MAGIC |---|---:|---:|---|
-# MAGIC | `broken` | Fail | Fail | Conflicting context, wrong tool, raw identifiers |
-# MAGIC | `over_redacted` | Fail | Pass | Clinical meaning removed with the identifiers |
-# MAGIC | `accurate_unsafe` | Pass | Fail | Correct answer still exposes and persists PHI |
-# MAGIC | `context_confusion` | Fail | Pass | Unrelated ORTH-310 is retrieved and contaminates the answer |
-# MAGIC | `context_poisoning` | Fail | Pass | Unverified memory explicitly overrides authoritative CP-104 |
-# MAGIC | `governed` | Pass | Pass | Minimum necessary context with typed transformation |
+# MAGIC
+# MAGIC Our sample healthcare agent for this workshop, Luma, takes in a patient and their identifiers and recommends **"transition-of-care guidance"** for patients leaving in-patient care.
+# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ⚠️ **## Groundedness and PHI leakage can go wrong in several ways. Here's a non-extensive list:** ⚠️
+# MAGIC
+# MAGIC ### Groundedness fails when:
+# MAGIC     - retrieved evidence is irrelevant to patient's condition (" context confusion " )
+# MAGIC     - conflicting policies are used without resolving precedence ( " context clash " )
+# MAGIC     - The agent introduces unsupported facts, citations, or clinical guidance that contaminate later reasoning (“context poisoning”, propagated hallucinations)
+# MAGIC     - Redaction removes context necessary for the correct clinical retrievals ( " overcorrection of PHI " )
+# MAGIC
+# MAGIC ### PHI leakage can occur when:
+# MAGIC     - Identifiers enter model prompts or outputs (" direct disclosure ")
+# MAGIC     - Unauthorized tools retrieve patient records (" scope violation ")
+# MAGIC     - Raw tool results are copied into traces or logs (" observability leakage ")
+# MAGIC     - Conversation history carries PHI into later sessions (" persistence leakage ")
+# MAGIC
+# MAGIC
+# MAGIC
+# MAGIC In this workshop, you’ll examine agent runs containing deliberate groundedness and PHI-leakage failures.
+# MAGIC
+# MAGIC  🔧** Your task: build LLM judges that detect these failures and identify which healthcare agents are accurate, safe, and ready to use.** 🛠️
+# MAGIC
+# MAGIC | Run | Failure being isolated |
+# MAGIC |---|---|
+# MAGIC | `broken` | Conflicting context, wrong tool, raw identifiers |
+# MAGIC | `over_redacted` | Unable to provide anything clinically meaningful because |
+# MAGIC | `accurate_unsafe` |  Correct answer still exposes and persists PHI |
+# MAGIC | `context_confusion` | Unrelated ORTH-310 is retrieved and contaminates the answer |
+# MAGIC | `context_poisoning` | Hallucination explicitly overrides authoritative CP-104 |
+# MAGIC | `governed` | Minimum necessary context with typed transformation |
 
 # COMMAND ----------
 
@@ -450,3 +477,29 @@ display(evaluation.tables["eval_results"])
 # MAGIC
 # MAGIC If `mlflow.genai` or `make_judge` is unavailable, attach current serverless compute or install
 # MAGIC `mlflow[databricks]>=3.1`, restart Python, and rerun this notebook from the top.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC   ## References - further reading
+# MAGIC
+# MAGIC Workshop materials
+# MAGIC       - Healthcare Agents Context Engineering workshop (https://github.com/tony-farias/healthcare-agents-context)
+# MAGIC       - Context Engineer Associate Exam Guide (https://www.databricks.com/sites/default/files/2026-07/databricks-certified-context-engineer-associate-exam-guide.pdf)
+# MAGIC
+# MAGIC   2. Databricks Free Edition
+# MAGIC       - Sign up for Databricks Free Edition (https://www.databricks.com/learn/free-edition)
+# MAGIC
+# MAGIC   1. MLflow Tracing — logs agent inputs, retrievals, tool calls, memory, outputs, and other evidence the judges inspect.
+# MAGIC       - Databricks: MLflow Tracing (https://docs.databricks.com/aws/en/mlflow3/genai/tracing/)
+# MAGIC       - Open source: Tracing quickstart (https://mlflow.org/docs/latest/genai/tracing/quickstart/)
+# MAGIC
+# MAGIC   2. LLM Judges and custom scorers — evaluate groundedness, PHI safety, policy relevance, and other domain-specific criteria.
+# MAGIC       - Databricks: Create a custom judge (https://docs.databricks.com/aws/en/mlflow3/genai/eval-monitor/custom-judge/create-custom-judge)
+# MAGIC       - Open source: LLM judge scorers (https://mlflow.org/docs/latest/genai/eval-monitor/scorers/llm-judge/predefined)
+# MAGIC       - Open source: Custom scorers (https://mlflow.org/docs/latest/genai/eval-monitor/scorers/custom/)
+# MAGIC
+# MAGIC   3. Agent evaluation runs — execute scenarios, apply multiple judges, and compare assessments across traces.
+# MAGIC       - Databricks: Evaluation runs (https://docs.databricks.com/aws/en/mlflow3/genai/eval-monitor/concepts/evaluation-runs)
+# MAGIC       - Open source: Evaluating agents (https://mlflow.org/docs/latest/genai/eval-monitor/running-evaluation/agents)
+# MAGIC
