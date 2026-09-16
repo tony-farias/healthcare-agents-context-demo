@@ -436,7 +436,9 @@ evaluation = mlflow.genai.evaluate(
 )
 
 print("Evaluation experiment:", EVALUATION_EXPERIMENT)
-display(evaluation.tables["eval_results"])
+# The result includes nested assessment objects that Spark cannot always infer through Arrow.
+# Render the small six-row Pandas table directly so notebook jobs complete reliably.
+displayHTML(evaluation.tables["eval_results"].to_html(index=False, escape=True))
 
 # COMMAND ----------
 
