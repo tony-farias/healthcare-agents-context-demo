@@ -15,8 +15,9 @@
 # MAGIC <summary>Click to reveal the reference implementation</summary>
 # MAGIC
 # MAGIC ```python
-# MAGIC groundedness_judge = make_judge(
-# MAGIC     name="groundedness",
+# MAGIC policy_groundedness_judge = make_judge(
+# MAGIC     # Avoid MLflow's reserved built-in `groundedness` assessment name.
+# MAGIC     name="policy_groundedness",
 # MAGIC     model=JUDGE_MODEL,
 # MAGIC     feedback_value_type=Literal["pass", "fail"],
 # MAGIC     instructions="""
@@ -96,7 +97,8 @@
 # MAGIC ```
 # MAGIC
 # MAGIC Replace the starter judge with this implementation, rerun the judge cell, and rerun the
-# MAGIC evaluation. `governed` and `over_redacted` should pass PHI safety; groundedness distinguishes
-# MAGIC their utility. The deliberately disclosing or unauthorized scenarios should fail PHI safety.
+# MAGIC evaluation. `governed` and `over_redacted` should pass PHI safety; `policy_groundedness`
+# MAGIC distinguishes their utility. The deliberately disclosing or unauthorized scenarios should
+# MAGIC fail PHI safety.
 # MAGIC
 # MAGIC </details>

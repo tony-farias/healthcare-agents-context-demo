@@ -1,11 +1,45 @@
+from pathlib import Path
+
 from healthcare_reliability_utils import (
     ReliabilityConfig,
+    as_retrieved_context,
     load_patient_document,
     patient_source_rows,
     run_reliability_agent,
     scorecard,
     transform_patient_context,
 )
+
+
+def test_notebook_uses_unambiguous_mlflow_assessment_and_retrieval_output():
+    notebook = (
+        Path(__file__).resolve().parents[1]
+        / "notebooks"
+        / "Accuracy_PHISafety_Combined_Lab.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'name="groundedness"' not in notebook
+    assert 'name="policy_groundedness"' in notebook
+    assert '"retrieved_context": as_retrieved_context(result["policies"])' in notebook
+
+
+def test_retrieved_context_uses_mlflow_contract():
+    result = run_reliability_agent(ReliabilityConfig.governed())
+    retrieved_context = as_retrieved_context(result["policies"])
+
+    assert retrieved_context == [
+        {
+            "content": (
+                "Heart-failure discharge requires follow-up within 7 days and "
+                "daily weight monitoring."
+            ),
+            "doc_uri": (
+                "/#workspace/Shared/context-engineering-healthcare-agents/notebooks/"
+                "policies/CP-104.md"
+            ),
+        }
+    ]
+    assert result["policies"][0]["metadata"]["doc_uri"] == retrieved_context[0]["doc_uri"]
 
 
 def test_patient_fixture_is_loaded_from_a_mock_document():

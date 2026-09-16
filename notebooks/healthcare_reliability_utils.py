@@ -30,6 +30,9 @@ PATIENT_SOURCE_URI = (
     "/#workspace/Shared/context-engineering-healthcare-agents/notebooks/"
     "patient_records/synthetic_transition_record.md"
 )
+POLICY_SOURCE_URI_ROOT = (
+    "/#workspace/Shared/context-engineering-healthcare-agents/notebooks/policies"
+)
 
 POLICIES = [
     {
@@ -41,6 +44,8 @@ POLICIES = [
         "precedence": 100,
         "overrides": ["CM-220"],
         "text": "Heart-failure discharge requires follow-up within 7 days and daily weight monitoring.",
+        "doc_uri": f"{POLICY_SOURCE_URI_ROOT}/CP-104.md",
+        "metadata": {"doc_uri": f"{POLICY_SOURCE_URI_ROOT}/CP-104.md"},
     },
     {
         "id": "CM-220",
@@ -51,6 +56,8 @@ POLICIES = [
         "precedence": 50,
         "overrides": [],
         "text": "General care-management follow-up occurs within 30 days.",
+        "doc_uri": f"{POLICY_SOURCE_URI_ROOT}/CM-220.md",
+        "metadata": {"doc_uri": f"{POLICY_SOURCE_URI_ROOT}/CM-220.md"},
     },
     {
         "id": "ORTH-310",
@@ -61,6 +68,8 @@ POLICIES = [
         "precedence": 40,
         "overrides": [],
         "text": "Post-operative knee patients should avoid driving for 2 weeks.",
+        "doc_uri": "workshop://policies/ORTH-310",
+        "metadata": {"doc_uri": "workshop://policies/ORTH-310"},
     },
 ]
 
@@ -119,6 +128,17 @@ def patient_source_rows() -> list[dict[str, Any]]:
             "source_uri": document["source_uri"],
             "used_by": "transform_patient_context, get_patient_summary",
         }
+    ]
+
+
+def as_retrieved_context(policies: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Convert policy results to MLflow's standard retrieved-context contract."""
+    return [
+        {
+            "content": policy["text"],
+            "doc_uri": policy.get("doc_uri", f"workshop://policies/{policy['id']}"),
+        }
+        for policy in policies
     ]
 
 
