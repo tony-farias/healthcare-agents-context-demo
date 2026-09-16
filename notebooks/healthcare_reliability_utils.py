@@ -365,13 +365,7 @@ def scorecard(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "run": r["config"].name,
-            "accuracy_pass": r["accuracy"]["passed"],
-            "privacy_pass": r["privacy"]["passed"],
-            "selected_tool": r["tool"]["name"],
             "retrieved_policies": ", ".join(p["id"] for p in r["policies"]) or "none",
-            "context_failure_mode": r["config"].context_failure_mode,
-            "selected_source": r["context_resolution"]["selected_source"],
-            "authoritative_overridden": r["context_resolution"]["authoritative_overridden"],
         }
         for r in results
     ]
