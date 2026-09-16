@@ -107,11 +107,34 @@ display([
 # MAGIC %md
 # MAGIC ### Open the fictional patient source
 # MAGIC
-# MAGIC The PHI scenarios now load a mock patient record from the project, just as the workshop keeps
-# MAGIC its fictional policy sources under `notebooks/policies`. The filename itself is
-# MAGIC non-identifying; the protected values are inside the document.
+# MAGIC The PHI scenarios load a mock patient record from `notebooks/patient_records`, alongside the
+# MAGIC workshop's fictional policy sources under `notebooks/policies`. The filename is
+# MAGIC non-identifying; the document contains the synthetic record ID, name, MRN, date of birth,
+# MAGIC phone, email, address, and transition-of-care note used by the exercises.
 # MAGIC
 # MAGIC [Open the synthetic transition-of-care record](/#workspace/Shared/context-engineering-healthcare-agents/notebooks/patient_records/synthetic_transition_record.md)
+# MAGIC
+# MAGIC ### How the agent uses this document
+# MAGIC
+# MAGIC 1. `load_patient_document()` reads the Markdown file and separates its metadata, direct
+# MAGIC    identifiers, and clinical note.
+# MAGIC 2. A preprocessing component must have the narrow `patient_record:deidentify` scope before it
+# MAGIC    can open the record. The policy-guidance agent receives only `clinical_policy` scope.
+# MAGIC 3. `transform_patient_context()` loads the raw note inside the preprocessing boundary, so raw
+# MAGIC    text is not supplied as an MLflow span input. It then applies the scenario's PHI policy:
+# MAGIC
+# MAGIC    | Scenario | Patient context released downstream |
+# MAGIC    |---|---|
+# MAGIC    | `broken` | Raw record; the unauthorized patient tool also returns the raw note |
+# MAGIC    | `over_redacted` | `[PATIENT] was discharged with [CONDITION]`; privacy is protected, but policy selection loses the clinical condition |
+# MAGIC    | `accurate_unsafe` | Raw record reaches model context and persisted memory |
+# MAGIC    | `context_confusion`, `context_poisoning`, `governed` | Only the de-identified clinical concept `heart failure` and discharge timing |
+# MAGIC
+# MAGIC 4. The deliberately unsafe `get_patient_summary` tool reads this same file. Its raw result
+# MAGIC    demonstrates a scope violation and lets participants locate PHI in the tool and model spans.
+# MAGIC 5. The deterministic privacy check takes the identifier values from the document and searches
+# MAGIC    the protected model context, answer, and memory. The PHI-safety LLM judge then examines the
+# MAGIC    complete trace, including tool results, to assess minimum-necessary use and disclosure.
 
 # COMMAND ----------
 
