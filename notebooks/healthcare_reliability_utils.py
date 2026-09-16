@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
-from workshop_utils import SYNTHETIC_PHI, _annotate, _traced
+from workshop_utils import _annotate, _traced
 
 try:
     from mlflow.entities import SpanType
@@ -19,6 +22,14 @@ except ImportError:
 
 
 QUERY = "What follow-up policy applies after this heart-failure discharge?"
+
+PATIENT_RECORD_PATH = (
+    Path(__file__).resolve().parent / "patient_records" / "synthetic_transition_record.md"
+)
+PATIENT_SOURCE_URI = (
+    "/#workspace/Shared/context-engineering-healthcare-agents/notebooks/"
+    "patient_records/synthetic_transition_record.md"
+)
 
 POLICIES = [
     {
@@ -53,9 +64,62 @@ POLICIES = [
     },
 ]
 
-PATIENT_RECORD = (
-    "Elena Marquez, MRN HLS-88421, was discharged yesterday with congestive heart failure."
+PATIENT_IDENTIFIER_FIELDS = (
+    "Record ID",
+    "Patient name",
+    "MRN",
+    "Date of birth",
+    "Phone",
+    "Email",
+    "Address",
 )
+
+
+@lru_cache(maxsize=1)
+def load_patient_document() -> dict[str, Any]:
+    """Load the fictional patient record without sending its raw contents to MLflow."""
+    content = PATIENT_RECORD_PATH.read_text(encoding="utf-8")
+    metadata = {
+        field.strip(): value.strip()
+        for field, value in re.findall(
+            r"^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|$",
+            content,
+            re.MULTILINE,
+        )
+        if field.strip() != "Field" and set(field.strip()) != {"-"}
+    }
+    note_match = re.search(
+        r"^## Transition-of-care note\s*$\n(?P<note>.*?)(?=^## |\Z)",
+        content,
+        re.MULTILINE | re.DOTALL,
+    )
+    if note_match is None:
+        raise ValueError(f"Missing Transition-of-care note in {PATIENT_RECORD_PATH}")
+    missing = [field for field in PATIENT_IDENTIFIER_FIELDS if field not in metadata]
+    if missing:
+        raise ValueError(f"Missing patient fields in {PATIENT_RECORD_PATH}: {', '.join(missing)}")
+    return {
+        "title": content.splitlines()[0].removeprefix("# "),
+        "classification": metadata.get("Classification", "Synthetic PHI"),
+        "source_uri": PATIENT_SOURCE_URI,
+        "path": str(PATIENT_RECORD_PATH),
+        "direct_identifiers": {field: metadata[field] for field in PATIENT_IDENTIFIER_FIELDS},
+        "clinical_note": note_match.group("note").strip(),
+    }
+
+
+def patient_source_rows() -> list[dict[str, Any]]:
+    """Return safe source metadata for display without exposing record contents."""
+    document = load_patient_document()
+    return [
+        {
+            "title": document["title"],
+            "classification": document["classification"],
+            "contains_synthetic_phi": True,
+            "source_uri": document["source_uri"],
+            "used_by": "transform_patient_context, get_patient_summary",
+        }
+    ]
 
 
 @dataclass(frozen=True)
@@ -105,23 +169,40 @@ def authorize_request() -> dict[str, Any]:
         "intent": "policy_guidance",
         "patient_specific": False,
         "authorized_scopes": ["clinical_policy"],
+        "preprocessing_scopes": ["patient_record:deidentify"],
     }
-    _annotate(**{"workshop.authorized_scopes": "clinical_policy", "workshop.patient_specific": False})
+    _annotate(
+        **{
+            "workshop.authorized_scopes": "clinical_policy",
+            "workshop.preprocessing_scopes": "patient_record:deidentify",
+            "workshop.patient_specific": False,
+        }
+    )
     return decision
 
 
 @_traced("transform_patient_context", SpanType.CHAIN)
-def transform_patient_context(text: str, policy: str) -> str:
+def transform_patient_context(policy: str, preprocessing_scopes: list[str]) -> str:
+    # Load raw content inside this boundary so a safe run does not capture it as a span input.
+    if "patient_record:deidentify" not in preprocessing_scopes:
+        raise PermissionError("Patient document preprocessing is not authorized")
+    text = load_patient_document()["clinical_note"]
     if policy == "none":
         transformed = text
     elif policy == "over_redact":
         transformed = "[PATIENT] was discharged with [CONDITION]."
     else:
         transformed = (
-            "[PATIENT_1], [MRN_1], was discharged yesterday with the governed clinical concept "
+            "De-identified discharge event from yesterday with the governed clinical concept "
             "heart failure."
         )
-    _annotate(**{"workshop.phi_policy": policy, "workshop.clinical_concept_preserved": "heart failure" in transformed})
+    _annotate(
+        **{
+            "workshop.phi_policy": policy,
+            "workshop.patient_source": "synthetic_document",
+            "workshop.clinical_concept_preserved": "heart failure" in transformed,
+        }
+    )
     return transformed
 
 
@@ -167,7 +248,10 @@ def select_tool(config: ReliabilityConfig, authorization: dict[str, Any]) -> dic
 @_traced("validate_tool_result", SpanType.CHAIN)
 def validate_tool_result(tool: dict[str, Any], policies: list[dict[str, Any]]) -> dict[str, Any]:
     if tool["name"] == "get_patient_summary":
-        value = PATIENT_RECORD + " Care-management follow-up: 30 days."
+        value = (
+            load_patient_document()["clinical_note"]
+            + " Care-management follow-up: 30 days."
+        )
     elif policies:
         value = "CP-104 requires follow-up within 7 days and overrides CM-220 for cardiology discharge."
     else:
@@ -314,9 +398,14 @@ def accuracy_score(result: dict[str, Any]) -> dict[str, Any]:
 
 def privacy_score(result: dict[str, Any]) -> dict[str, Any]:
     protected = "\n".join([result["model_context"], result["answer"], result["memory"]]).lower()
+    identifiers = load_patient_document()["direct_identifiers"]
+    identifier_checks = {
+        f"{re.sub(r'[^a-z0-9]+', '_', field.lower()).strip('_')}_absent": value.lower()
+        not in protected
+        for field, value in identifiers.items()
+    }
     checks = {
-        "name_absent": SYNTHETIC_PHI["name"].lower() not in protected,
-        "mrn_absent": SYNTHETIC_PHI["mrn"].lower() not in protected,
+        **identifier_checks,
         "tool_scope_allowed": result["tool"]["allowed"],
         "safe_memory": result["config"].safe_memory,
     }
@@ -326,7 +415,10 @@ def privacy_score(result: dict[str, Any]) -> dict[str, Any]:
 @_traced("healthcare_reliability_agent", SpanType.AGENT)
 def run_reliability_agent(config: ReliabilityConfig) -> dict[str, Any]:
     authorization = authorize_request()
-    transformed = transform_patient_context(PATIENT_RECORD, config.phi_policy)
+    transformed = transform_patient_context(
+        config.phi_policy,
+        authorization["preprocessing_scopes"],
+    )
     persistent_context = load_persistent_context(config)
     policies = retrieve_context(
         transformed,
@@ -365,7 +457,13 @@ def scorecard(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "run": r["config"].name,
+            "accuracy_pass": r["accuracy"]["passed"],
+            "privacy_pass": r["privacy"]["passed"],
+            "selected_tool": r["tool"]["name"],
             "retrieved_policies": ", ".join(p["id"] for p in r["policies"]) or "none",
+            "context_failure_mode": r["config"].context_failure_mode,
+            "selected_source": r["context_resolution"]["selected_source"],
+            "authoritative_overridden": r["context_resolution"]["authoritative_overridden"],
         }
         for r in results
     ]

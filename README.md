@@ -3,6 +3,10 @@
 A 45-minute, hands-on Databricks workshop for diagnosing and tuning healthcare agents from
 MLflow traces. All patient-like values are fictional markers created solely for the lab.
 
+Fictional policy sources live in `notebooks/policies`. The PHI-safety scenarios load their mock
+record from `notebooks/patient_records/synthetic_transition_record.md`; no real patient data belongs
+in this repository or its MLflow traces.
+
 ## Participant path
 
 Run the notebooks in numeric order. Use serverless compute and keep `LIVE_MODEL=False` for fully
@@ -33,4 +37,3 @@ Authenticate the `fe-vm-hls-amer` profile, then sync the portable content:
 ```bash
 databricks sync . /Shared/context-engineering-healthcare-agents --profile fe-vm-hls-amer
 ```
-
