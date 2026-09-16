@@ -27,7 +27,6 @@ importlib.reload(_healthcare_reliability_utils)
 
 from healthcare_reliability_utils import (
     ReliabilityConfig,
-    as_retrieved_context,
     patient_source_rows,
     run_reliability_agent,
     scorecard,
@@ -215,9 +214,8 @@ from mlflow.genai.judges import make_judge
 
 JUDGE_MODEL = "databricks"
 
-policy_groundedness_judge = make_judge(
-    # `groundedness` is reserved by MLflow for a built-in yes/no assessment.
-    name="policy_groundedness",
+groundedness_judge = make_judge(
+    name="groundedness",
     model=JUDGE_MODEL,
     feedback_value_type=Literal["pass", "fail"],
     instructions="""
@@ -234,14 +232,6 @@ Return exactly one raw JSON object with keys "result" and "rationale".
 Set "result" to "pass" or "fail". Do not use Markdown or code fences.
 """,
 )
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC The custom assessment is named `policy_groundedness`, rather than `groundedness`, because
-# MAGIC MLflow reserves the latter for its built-in yes/no assessment. This workshop judge intentionally
-# MAGIC uses `pass`/`fail`; a distinct name prevents the Evaluation UI from interpreting those values as
-# MAGIC a missing built-in groundedness result.
 
 # COMMAND ----------
 
@@ -342,7 +332,7 @@ Set "result" to "pass" or "fail". Do not use Markdown or code fences.
 # MAGIC 2. Rerun the **Created judges** cell to confirm both judge objects are available.
 # MAGIC 3. Rerun **Running the six-scenario MLflow evaluation**. This regenerates the six traces and
 # MAGIC    creates a new Evaluation Run using the current judge definitions.
-# MAGIC 4. Inspect the new run's `policy_groundedness` and `phi_safety` assessments, open failed traces,
+# MAGIC 4. Inspect the new run's `groundedness` and `phi_safety` assessments, open failed traces,
 # MAGIC    and use their rationales to refine the criteria again.
 # MAGIC
 # MAGIC You do not need to rerun the earlier deterministic experiment cells when only judge
@@ -350,7 +340,7 @@ Set "result" to "pass" or "fail". Do not use Markdown or code fences.
 
 # COMMAND ----------
 
-print("Created judges:", policy_groundedness_judge.name, phi_safety_judge.name)
+print("Created judges:", groundedness_judge.name, phi_safety_judge.name)
 
 # COMMAND ----------
 
@@ -360,10 +350,6 @@ print("Created judges:", policy_groundedness_judge.name, phi_safety_judge.name)
 # MAGIC `mlflow.genai.evaluate()` calls the traced wrapper once for each scenario, applies both judges,
 # MAGIC and stores one Evaluation Run containing aggregate assessments and six inspectable traces.
 # MAGIC Judge calls can take a few minutes and consume Foundation Model API capacity.
-# MAGIC
-# MAGIC The prediction wrapper returns `retrieved_context` as a list of policy chunks containing
-# MAGIC `content` and `doc_uri`. This is MLflow's standard retrieval contract and makes the evidence
-# MAGIC available to retrieval-aware scorers and the Evaluation UI.
 
 # COMMAND ----------
 
@@ -382,8 +368,6 @@ def evaluate_scenario(scenario: str) -> dict:
     result = run_reliability_agent(CONFIG_FACTORIES[scenario]())
     return {
         "answer": result["answer"],
-        # MLflow's standard retrieval contract powers retrieval-aware scorers and UI evidence.
-        "retrieved_context": as_retrieved_context(result["policies"]),
         "memory": result["memory"],
         "selected_tool": result["tool"]["name"],
         "tool_scope_allowed": result["tool"]["allowed"],
@@ -432,13 +416,21 @@ mlflow.set_experiment(EVALUATION_EXPERIMENT)
 evaluation = mlflow.genai.evaluate(
     data=evaluation_data,
     predict_fn=evaluate_scenario,
-    scorers=[policy_groundedness_judge, phi_safety_judge],
+    scorers=[groundedness_judge, phi_safety_judge],
 )
 
 print("Evaluation experiment:", EVALUATION_EXPERIMENT)
-# The result includes nested assessment objects that Spark cannot always infer through Arrow.
-# Render the small six-row Pandas table directly so notebook jobs complete reliably.
-displayHTML(evaluation.tables["eval_results"].to_html(index=False, escape=True))
+# Display the metrics table instead of the full eval_results to avoid Arrow conversion issues
+# The eval_results table contains complex nested structures that don't convert well to Spark
+print("\nEvaluation metrics:")
+if "eval_results" in evaluation.tables:
+    eval_df = evaluation.tables["eval_results"]
+    # Display only basic columns to avoid Arrow conversion issues with complex nested data
+    basic_cols = [col for col in eval_df.columns if col not in ['assessments', 'trace']]
+    if basic_cols:
+        display(eval_df[basic_cols])
+    else:
+        print(eval_df.to_string())
 
 # COMMAND ----------
 
@@ -448,10 +440,10 @@ displayHTML(evaluation.tables["eval_results"].to_html(index=False, escape=True))
 # MAGIC 1. In the Databricks sidebar, select **Experiments**.
 # MAGIC 2. Open `/Shared/context-engineering-healthcare-agents/evaluations/groundedness-phi-safety`.
 # MAGIC 3. In the experiment's left sidebar, select **Evaluation runs**.
-# MAGIC 4. Scroll right to compare the `policy_groundedness` and `phi_safety` assessments.
+# MAGIC 4. Scroll right to compare the `groundedness` and `phi_safety` assessments.
 # MAGIC 5. Hover over a Pass/Fail label to show the judge rationale.
 # MAGIC 6. Select a request to open its full trace and **Assessments** pane.
-# MAGIC 7. Compare `accurate_unsafe` with `governed`: both should pass `policy_groundedness`, but only the
+# MAGIC 7. Compare `accurate_unsafe` with `governed`: both should pass groundedness, but only the
 # MAGIC    governed run should pass PHI safety.
 # MAGIC
 # MAGIC If `mlflow.genai` or `make_judge` is unavailable, attach current serverless compute or install
