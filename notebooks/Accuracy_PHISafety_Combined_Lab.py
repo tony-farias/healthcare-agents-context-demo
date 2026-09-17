@@ -213,7 +213,18 @@ import mlflow
 from typing import Literal
 from mlflow.genai.judges import make_judge
 
-JUDGE_MODEL = "databricks"
+DEFAULT_JUDGE_MODEL = "databricks"
+TESTED_FALLBACK_JUDGE_MODEL = "databricks:/databricks-qwen3-next-80b-a3b-instruct"
+try:
+    # Instructors can override the managed default with the tested fallback endpoint or another
+    # approved judge model.
+    dbutils.widgets.text("judge_model", DEFAULT_JUDGE_MODEL)
+    JUDGE_MODEL = dbutils.widgets.get("judge_model").strip() or DEFAULT_JUDGE_MODEL
+except NameError:
+    JUDGE_MODEL = DEFAULT_JUDGE_MODEL
+
+print("Judge model:", JUDGE_MODEL)
+print("Tested explicit fallback:", TESTED_FALLBACK_JUDGE_MODEL)
 
 policy_groundedness_judge = make_judge(
     # `groundedness` is reserved by MLflow for a built-in yes/no assessment.
@@ -366,6 +377,13 @@ print("Created judges:", policy_groundedness_judge.name, phi_safety_judge.name)
 # MAGIC available to retrieval-aware scorers and the Evaluation UI.
 
 # COMMAND ----------
+
+import os
+
+# Limit concurrent load on the managed judge by serializing prediction-row and scorer execution.
+# If the managed judge service is unavailable, use the tested fallback model on serverless client 4.
+os.environ["MLFLOW_GENAI_EVAL_MAX_WORKERS"] = "1"
+os.environ["MLFLOW_GENAI_EVAL_MAX_SCORER_WORKERS"] = "1"
 
 CONFIG_FACTORIES = {
     "broken": ReliabilityConfig.broken,

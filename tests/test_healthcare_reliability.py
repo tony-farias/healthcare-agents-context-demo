@@ -20,7 +20,15 @@ def test_notebook_uses_unambiguous_mlflow_assessment_and_retrieval_output():
 
     assert 'name="groundedness"' not in notebook
     assert 'name="policy_groundedness"' in notebook
+    assert (
+        'TESTED_FALLBACK_JUDGE_MODEL = '
+        '"databricks:/databricks-qwen3-next-80b-a3b-instruct"'
+        in notebook
+    )
+    assert 'dbutils.widgets.text("judge_model", DEFAULT_JUDGE_MODEL)' in notebook
     assert '"retrieved_context": as_retrieved_context(result["policies"])' in notebook
+    assert 'os.environ["MLFLOW_GENAI_EVAL_MAX_WORKERS"] = "1"' in notebook
+    assert 'os.environ["MLFLOW_GENAI_EVAL_MAX_SCORER_WORKERS"] = "1"' in notebook
 
 
 def test_retrieved_context_uses_mlflow_contract():
