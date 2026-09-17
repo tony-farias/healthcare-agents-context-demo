@@ -137,7 +137,10 @@ def authorize_request() -> dict[str, Any]:
 
 
 @_traced("transform_patient_context", SpanType.CHAIN)
-def transform_patient_context(text: str, policy: str) -> str:
+def transform_patient_context(policy: str) -> str:
+    # Read the embedded fixture inside the transformation boundary so safe scenarios do not capture
+    # raw identifiers as traced function inputs.
+    text = PATIENT_RECORD
     if policy == "none":
         transformed = text
     elif policy == "over_redact":
@@ -358,7 +361,7 @@ def privacy_score(result: dict[str, Any]) -> dict[str, Any]:
 @_traced("healthcare_reliability_agent", SpanType.AGENT)
 def run_reliability_agent(config: ReliabilityConfig) -> dict[str, Any]:
     authorization = authorize_request()
-    transformed = transform_patient_context(PATIENT_RECORD, config.phi_policy)
+    transformed = transform_patient_context(config.phi_policy)
     persistent_context = load_persistent_context(config)
     policies = retrieve_context(
         transformed,

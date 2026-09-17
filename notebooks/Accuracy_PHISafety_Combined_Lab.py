@@ -117,8 +117,9 @@ display([
 # MAGIC
 # MAGIC ### How the evaluation gets patient-like data
 # MAGIC
-# MAGIC `run_reliability_agent()` passes the embedded fictional string to
-# MAGIC `transform_patient_context()`, which applies the scenario's PHI policy:
+# MAGIC `transform_patient_context()` reads the embedded fictional string inside its transformation
+# MAGIC boundary and applies the scenario's PHI policy. Keeping the raw string out of the function
+# MAGIC arguments prevents safe scenarios from capturing identifiers as traced inputs:
 # MAGIC
 # MAGIC    | Scenario | Patient context released downstream |
 # MAGIC    |---|---|

@@ -30,6 +30,34 @@ def test_notebook_uses_unambiguous_mlflow_assessment_and_retrieval_output():
     assert 'os.environ["MLFLOW_GENAI_EVAL_MAX_SCORER_WORKERS"] = "1"' in notebook
 
 
+def test_answer_notebook_is_executable_and_documents_expected_verdicts():
+    project_root = Path(__file__).resolve().parents[1]
+    notebook = (project_root / "notebooks" / "answers.py").read_text(encoding="utf-8")
+    root_pointer = (project_root / "answers.py").read_text(encoding="utf-8")
+
+    assert "***TO-DO***" not in notebook
+    assert 'name="policy_groundedness"' in notebook
+    assert 'name="phi_safety"' in notebook
+    assert (
+        'JUDGE_MODEL = "databricks:/databricks-qwen3-next-80b-a3b-instruct"'
+        in notebook
+    )
+    assert 'os.environ["MLFLOW_GENAI_EVAL_MAX_WORKERS"] = "1"' in notebook
+    assert 'os.environ["MLFLOW_GENAI_EVAL_MAX_SCORER_WORKERS"] = "1"' in notebook
+    assert "evaluation = mlflow.genai.evaluate(" in notebook
+    assert '"retrieved_context": as_retrieved_context(result["policies"])' in notebook
+    assert '"broken": ReliabilityConfig.broken' in notebook
+    assert '"governed": ReliabilityConfig.governed' in notebook
+    assert "broken: fail / fail" in notebook
+    assert "over_redacted: fail / pass" in notebook
+    assert "accurate_unsafe: pass / fail" in notebook
+    assert "context_confusion: fail / pass" in notebook
+    assert "context_poisoning: fail / pass" in notebook
+    assert "governed: pass / pass" in notebook
+    assert "rationale must be non-empty, evidence-based" in notebook
+    assert "notebooks/answers.py" in root_pointer
+
+
 def test_retrieved_context_uses_mlflow_contract():
     result = run_reliability_agent(ReliabilityConfig.governed())
     retrieved_context = as_retrieved_context(result["policies"])
@@ -65,7 +93,7 @@ def test_patient_document_is_illustrative_not_a_runtime_input():
 
 
 def test_preprocessing_exposes_only_purpose_limited_context():
-    transformed = transform_patient_context(PATIENT_RECORD, "minimum_necessary")
+    transformed = transform_patient_context("minimum_necessary")
     assert "heart failure" in transformed
     assert "Elena Marquez" not in transformed
     assert "HLS-88421" not in transformed

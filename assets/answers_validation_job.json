@@ -1,0 +1,25 @@
+{
+  "run_name": "Validate healthcare reference answers",
+  "timeout_seconds": 1800,
+  "tasks": [
+    {
+      "task_key": "validate_reference_answers",
+      "notebook_task": {
+        "notebook_path": "/Shared/context-engineering-healthcare-agents/notebooks/answers",
+        "source": "WORKSPACE"
+      },
+      "environment_key": "answers_environment"
+    }
+  ],
+  "environments": [
+    {
+      "environment_key": "answers_environment",
+      "spec": {
+        "client": "4",
+        "dependencies": [
+          "mlflow[databricks]>=3.1,<4"
+        ]
+      }
+    }
+  ]
+}
