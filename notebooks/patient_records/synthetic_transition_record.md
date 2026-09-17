@@ -21,6 +21,6 @@ elena.marquez@example.test. The patient was discharged yesterday with congestive
 
 ## Workshop use
 
-This record is loaded by the PHI-safety fixture. Unsafe scenarios pass its raw content through the
-agent and patient-record tool. Governed scenarios reduce it to the clinical concept and timing needed
-to select policy, before traced model, tool, logging, and memory boundaries.
+This document is an illustrative example only. The PHI-safety evaluation does not open, parse,
+retrieve, or otherwise use this file. Executable scenarios use a separate, embedded fictional string
+defined in `healthcare_reliability_utils.py`; editing this document does not change evaluation output.

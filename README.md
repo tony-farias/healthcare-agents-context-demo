@@ -3,9 +3,10 @@
 A 45-minute, hands-on Databricks workshop for diagnosing and tuning healthcare agents from
 MLflow traces. All patient-like values are fictional markers created solely for the lab.
 
-Fictional policy sources live in `notebooks/policies`. The PHI-safety scenarios load their mock
-record from `notebooks/patient_records/synthetic_transition_record.md`; no real patient data belongs
-in this repository or its MLflow traces.
+Fictional policy sources live in `notebooks/policies`. The patient record under
+`notebooks/patient_records` is illustrative only and is not read by the evaluation runtime, which
+uses a small embedded fictional fixture. No real patient data belongs in this repository or its
+MLflow traces.
 
 ## Participant path
 

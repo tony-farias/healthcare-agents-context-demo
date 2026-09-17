@@ -1,10 +1,9 @@
 from pathlib import Path
 
 from healthcare_reliability_utils import (
+    PATIENT_RECORD,
     ReliabilityConfig,
     as_retrieved_context,
-    load_patient_document,
-    patient_source_rows,
     run_reliability_agent,
     scorecard,
     transform_patient_context,
@@ -50,40 +49,31 @@ def test_retrieved_context_uses_mlflow_contract():
     assert result["policies"][0]["metadata"]["doc_uri"] == retrieved_context[0]["doc_uri"]
 
 
-def test_patient_fixture_is_loaded_from_a_mock_document():
-    document = load_patient_document()
-    assert document["path"].endswith("patient_records/synthetic_transition_record.md")
-    assert document["classification"] == "Synthetic PHI"
-    assert document["direct_identifiers"]["MRN"] == "HLS-88421"
-    assert "congestive heart failure" in document["clinical_note"]
-    assert patient_source_rows()[0]["used_by"] == (
-        "transform_patient_context, get_patient_summary"
+def test_patient_document_is_illustrative_not_a_runtime_input():
+    project_root = Path(__file__).resolve().parents[1]
+    helper = (project_root / "notebooks" / "healthcare_reliability_utils.py").read_text(
+        encoding="utf-8"
     )
+    document = (
+        project_root / "notebooks" / "patient_records" / "synthetic_transition_record.md"
+    ).read_text(encoding="utf-8")
+
+    assert "load_patient_document" not in helper
+    assert "patient_records/synthetic_transition_record.md" not in helper
+    assert "illustrative example only" in document
+    assert "editing this document does not change evaluation output" in document.lower()
 
 
 def test_preprocessing_exposes_only_purpose_limited_context():
-    transformed = transform_patient_context(
-        "minimum_necessary",
-        ["patient_record:deidentify"],
-    )
-    document = load_patient_document()
+    transformed = transform_patient_context(PATIENT_RECORD, "minimum_necessary")
     assert "heart failure" in transformed
-    assert all(
-        value not in transformed for value in document["direct_identifiers"].values()
-    )
+    assert "Elena Marquez" not in transformed
+    assert "HLS-88421" not in transformed
 
 
-def test_preprocessing_requires_its_own_patient_scope():
-    try:
-        transform_patient_context("minimum_necessary", [])
-    except PermissionError:
-        return
-    raise AssertionError("Patient preprocessing should fail without de-identification scope")
-
-
-def test_patient_tool_reads_the_mock_document():
+def test_patient_tool_uses_the_embedded_fixture():
     result = run_reliability_agent(ReliabilityConfig.broken())
-    assert load_patient_document()["clinical_note"] in result["tool_result"]["value"]
+    assert PATIENT_RECORD in result["tool_result"]["value"]
 
 
 def test_four_run_matrix():
